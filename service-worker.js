@@ -1,4 +1,4 @@
-const CACHE_NAME = "treino-capivaras-v1";
+const CACHE_NAME = "treino-capivaras-v2";
 const APP_SHELL = ["./", "./index.html", "./app.js", "./styles.css", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (event) => {
