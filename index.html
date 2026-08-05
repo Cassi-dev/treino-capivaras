@@ -24,8 +24,9 @@
   <div id="root">
     <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;color:#64748b;font-family:ui-sans-serif,system-ui,sans-serif;font-size:14px;">carregando...</div>
   </div>
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./app.js?v=4"></script>
   <script>
+    // SW autodestrutivo: limpa qualquer versão presa em cache de deploys anteriores.
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
         navigator.serviceWorker.register("./service-worker.js").catch((e) => console.error("SW register failed", e));

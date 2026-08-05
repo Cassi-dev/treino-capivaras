@@ -1,41 +1,15 @@
-const CACHE_NAME = "treino-capivaras-v2";
-const APP_SHELL = ["./", "./index.html", "./app.js", "./styles.css", "./manifest.json", "./icon-192.png", "./icon-512.png"];
-
-self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
-  self.skipWaiting();
-});
+// Autodestrutivo: substitui qualquer service worker antigo (v1/v2/v3) que ficou preso
+// servindo arquivos em cache desatualizados. Ao ativar, apaga todos os caches e se
+// desregistra — a partir daí a página volta a buscar tudo direto da rede, sem cache
+// intermediário. Isso resolve o "carregando" travado por versão antiga do app.js.
+self.addEventListener("install", () => self.skipWaiting());
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))
-  );
-  self.clients.claim();
-});
-
-self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url);
-
-  // Só cuida do próprio domínio (app shell). Chamadas ao Firebase (auth/firestore, outro
-  // domínio) passam direto pela rede — nunca devem ser interceptadas ou cacheadas aqui.
-  if (url.origin !== self.location.origin || event.request.method !== "GET") return;
-
-  if (event.request.mode === "navigate") {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match("./index.html"))
-    );
-    return;
-  }
-
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const network = fetch(event.request)
-        .then((res) => {
-          if (res.ok) caches.open(CACHE_NAME).then((cache) => cache.put(event.request, res.clone()));
-          return res;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
+    caches.keys()
+      .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+      .then(() => self.registration.unregister())
+      .then(() => self.clients.matchAll())
+      .then((clients) => clients.forEach((client) => client.navigate(client.url)))
   );
 });
