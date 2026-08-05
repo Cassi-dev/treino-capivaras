@@ -18,13 +18,66 @@
   <style>
     html, body, #root { min-height: 100%; background-color: #0f172a; }
     body { margin: 0; }
+    #debug-panel {
+      position: fixed; left: 0; right: 0; bottom: 0; max-height: 45vh; overflow-y: auto;
+      background: rgba(0,0,0,0.92); color: #5eead4; font: 11px/1.4 ui-monospace, monospace;
+      padding: 8px 10px; z-index: 99999; white-space: pre-wrap; word-break: break-word;
+      border-top: 2px solid #334155;
+    }
+    #debug-panel .err { color: #fca5a5; }
+    #debug-panel .warn { color: #fbbf24; }
+    #debug-badge {
+      position: fixed; right: 8px; bottom: 8px; z-index: 100000; background: #1e293b; color: #94a3b8;
+      font: 10px ui-monospace, monospace; padding: 4px 8px; border-radius: 6px; opacity: 0.85;
+    }
   </style>
 </head>
 <body>
   <div id="root">
     <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;color:#64748b;font-family:ui-sans-serif,system-ui,sans-serif;font-size:14px;">carregando...</div>
   </div>
-  <script type="module" src="./app.js?v=4"></script>
+
+  <!-- Painel de log visível na própria tela — captura tudo mesmo sem acesso a devtools -->
+  <div id="debug-panel"></div>
+  <div id="debug-badge">build v5-debug</div>
+  <script>
+    (function () {
+      var panel = document.getElementById("debug-panel");
+      var lineCount = 0;
+      function addLine(text, cls) {
+        lineCount++;
+        var el = document.createElement("div");
+        if (cls) el.className = cls;
+        var t = new Date().toISOString().slice(11, 19);
+        el.textContent = "[" + t + "] " + text;
+        panel.appendChild(el);
+        panel.scrollTop = panel.scrollHeight;
+      }
+      function fmt(args) {
+        return Array.prototype.map.call(args, function (a) {
+          if (a instanceof Error) return a.message + (a.stack ? "\n" + a.stack : "");
+          if (typeof a === "object") { try { return JSON.stringify(a); } catch (e) { return String(a); } }
+          return String(a);
+        }).join(" ");
+      }
+      var origLog = console.log, origWarn = console.warn, origError = console.error;
+      console.log = function () { addLine(fmt(arguments)); origLog.apply(console, arguments); };
+      console.warn = function () { addLine(fmt(arguments), "warn"); origWarn.apply(console, arguments); };
+      console.error = function () { addLine(fmt(arguments), "err"); origError.apply(console, arguments); };
+      window.addEventListener("error", function (e) {
+        addLine("erro global: " + (e.message || e.error) + (e.filename ? " @" + e.filename + ":" + e.lineno : ""), "err");
+      });
+      window.addEventListener("unhandledrejection", function (e) {
+        addLine("promise rejeitada: " + (e.reason && e.reason.message ? e.reason.message : e.reason), "err");
+      });
+      addLine("index.html carregado, aguardando módulo app.js...");
+      setTimeout(function () {
+        if (lineCount <= 1) addLine("nenhum log em 5s — app.js pode não ter chegado a rodar (rede/cache/erro de sintaxe)", "warn");
+      }, 5000);
+    })();
+  </script>
+
+  <script type="module" src="./app.js?v=5"></script>
   <script>
     // SW autodestrutivo: limpa qualquer versão presa em cache de deploys anteriores.
     if ("serviceWorker" in navigator) {
